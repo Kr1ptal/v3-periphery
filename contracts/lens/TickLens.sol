@@ -5,9 +5,10 @@ pragma abicoder v2;
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 
 import '../interfaces/ITickLens.sol';
+import "../base/Multicall.sol";
 
 /// @title Tick Lens contract
-contract TickLens is ITickLens {
+contract TickLens is ITickLens, Multicall {
     /// @inheritdoc ITickLens
     function getPopulatedTicksInWord(address pool, int16 tickBitmapIndex)
         public
