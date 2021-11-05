@@ -41,19 +41,28 @@ contract TickLens is ITickLens {
         }
     }
 
+    /// @notice Taken from TickBitmap#nextInitializedTickWithinOneWord
+    function getWordFromTick(int24 tick, int24 tickSpacing) private pure returns (int16 word) {
+        word = int16((tick / tickSpacing) >> 8);
+        // round towards negative infinity
+        if (tick < 0 && tick % tickSpacing != 0) word--;
+    }
+
     function getInitializedTickRange(address pool, uint8 wordRange)
         public
         view
         returns (uint160 sqrtPriceX96, int24 tick, uint128 liquidity, PopulatedTick[] memory populatedTicks)
     {
         liquidity = IUniswapV3Pool(pool).liquidity();
-        ( sqrtPriceX96, tick, , , , , ) = IUniswapV3Pool(pool).slot0();
-        int16 startWordIndex = int16(tick >> 8);
+        (sqrtPriceX96, tick, , , , , ) = IUniswapV3Pool(pool).slot0();
+
+        int24 tickSpacing = IUniswapV3Pool(pool).tickSpacing();
+        int16 wordStartIndex = getWordFromTick(tick, tickSpacing);
 
         // first, count initialized tickers
         uint256 numberOfPopulatedTicks;
-        int16 wordEndIndex = startWordIndex + int16(wordRange);
-        for (int16 wordIndex = startWordIndex; wordIndex < wordEndIndex; wordIndex++) {
+        int16 wordEndIndex = wordStartIndex + int16(wordRange);
+        for (int16 wordIndex = wordStartIndex; wordIndex < wordEndIndex; wordIndex++) {
             uint256 bitmap = IUniswapV3Pool(pool).tickBitmap(wordIndex);
             for (uint256 i = 0; i < 256; i++) {
                if (bitmap & (1 << i) > 0) {
@@ -61,9 +70,8 @@ contract TickLens is ITickLens {
                }
             }
         }
-
-        wordEndIndex = startWordIndex - int16(wordRange);
-        for (int16 wordIndex = startWordIndex - 1; wordIndex >= wordEndIndex; wordIndex--) {
+        wordEndIndex = wordStartIndex - int16(wordRange);
+        for (int16 wordIndex = wordStartIndex - 1; wordIndex >= wordEndIndex; wordIndex--) {
             uint256 bitmap = IUniswapV3Pool(pool).tickBitmap(wordIndex);
             for (uint256 i = 0; i < 256; i++) {
                if (bitmap & (1 << i) > 0) {
@@ -73,10 +81,9 @@ contract TickLens is ITickLens {
         }
 
         // then, fetch populated tick data
-        int24 tickSpacing = IUniswapV3Pool(pool).tickSpacing();
         populatedTicks = new PopulatedTick[](numberOfPopulatedTicks);
-        wordEndIndex = startWordIndex + int16(wordRange);
-        for (int16 wordIndex = startWordIndex; wordIndex < wordEndIndex; wordIndex++) {
+        wordEndIndex = wordStartIndex + int16(wordRange);
+        for (int16 wordIndex = wordStartIndex; wordIndex < wordEndIndex; wordIndex++) {
             uint256 bitmap = IUniswapV3Pool(pool).tickBitmap(wordIndex);
             for (uint256 i = 0; i < 256; i++) {
                if (bitmap & (1 << i) == 0) {
@@ -91,8 +98,8 @@ contract TickLens is ITickLens {
                });
             }
         }
-        wordEndIndex = startWordIndex - int16(wordRange);
-        for (int16 wordIndex = startWordIndex - 1; wordIndex >= wordEndIndex; wordIndex--) {
+        wordEndIndex = wordStartIndex - int16(wordRange);
+        for (int16 wordIndex = wordStartIndex - 1; wordIndex >= wordEndIndex; wordIndex--) {
             uint256 bitmap = IUniswapV3Pool(pool).tickBitmap(wordIndex);
             for (uint256 i = 0; i < 256; i++) {
                if (bitmap & (1 << i) == 0) {
