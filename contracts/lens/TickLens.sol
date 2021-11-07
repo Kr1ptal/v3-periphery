@@ -48,7 +48,7 @@ contract TickLens is ITickLens {
         if (tick < 0 && tick % tickSpacing != 0) word--;
     }
 
-    function getInitializedTickRange(address pool, uint8 wordRange)
+    function getInitializedTickRange(address pool, uint16 wordRange)
         public
         view
         returns (uint160 sqrtPriceX96, int24 tick, uint128 liquidity, PopulatedTick[] memory populatedTicks)
